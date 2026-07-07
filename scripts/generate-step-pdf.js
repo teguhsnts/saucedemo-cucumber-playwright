@@ -59,7 +59,10 @@ function buildHtml(scenarioName, steps) {
 
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
-  const browser = await puppeteer.launch();
+  // const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
 
   for (const [scenarioName, steps] of Object.entries(grouped)) {
     const safeName = scenarioName.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -70,7 +73,11 @@ function buildHtml(scenarioName, steps) {
     fs.writeFileSync(htmlPath, html);
 
     const page = await browser.newPage();
-    await page.goto(`file://${path.resolve(htmlPath)}`, { waitUntil: 'networkidle0' });
+    // await page.goto(`file://${path.resolve(htmlPath)}`, { waitUntil: 'networkidle0' });
+    await page.goto(`file://${path.resolve(htmlPath)}`, {
+      waitUntil: 'networkidle0',
+      timeout: 60000 // naikkan dari default 30000ms jadi 60 detik
+    });
 
     await page.pdf({
       path: pdfPath,

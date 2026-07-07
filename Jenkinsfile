@@ -33,6 +33,7 @@ pipeline {
             steps {
                 bat 'npm ci'
                 bat 'npx playwright install --with-deps chromium'
+                bat 'npx puppeteer browsers install chrome'
             }
         }
 
