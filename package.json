@@ -1,0 +1,35 @@
+{
+  "name": "playwright",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "cucumber-js && npm run report:step-pdf",
+    "test:headed": "cucumber-js --world-parameters \"{\\\"headless\\\":false}\" && npm run report:step-pdf",
+    "test:negative": "cucumber-js --tags @negative && npm run report:step-pdf",
+    "test:positive": "cucumber-js --tags @positive && npm run report:step-pdf",
+    "test:allure": "npm test && npm run allure:record",
+    "allure:record": "cucumber-js --format allure-cucumberjs/reporter --format-options \"{\\\"resultsDir\\\":\\\"allure-results\\\"}\"",
+    "allure:generate": "allure generate allure-results -o allure-report --clean --single-file",
+    "allure:open": "allure open allure-report",
+    "allure:full": "npm run test:allure && npm run allure:generate && npm run allure:open",
+    "report:step-pdf": "node scripts/generate-step-pdf.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@cucumber/cucumber": "^12.9.0",
+    "@cucumber/pretty-formatter": "^3.3.1",
+    "@playwright/test": "^1.60.0",
+    "allure-commandline": "^2.42.1",
+    "allure-cucumberjs": "^3.10.0",
+    "cross-env": "^10.1.0",
+    "multiple-cucumber-html-reporter": "^3.10.0",
+    "playwright": "^1.60.0",
+    "puppeteer": "^25.3.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  }
+}
