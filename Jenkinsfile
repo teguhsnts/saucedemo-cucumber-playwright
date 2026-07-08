@@ -125,7 +125,7 @@ pipeline {
                 expression { params.RUN_ALLURE == true }
             }
             steps {
-                bat 'cucumber-js --format allure-cucumberjs/reporter --format-options "{\\"resultsDir\\":\\"allure-results\\"}"'
+                bat 'npx cucumber-js --format allure-cucumberjs/reporter --format-options "{\\"resultsDir\\":\\"allure-results\\"}"'
             }
         }
 
