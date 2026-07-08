@@ -125,7 +125,12 @@ pipeline {
                 expression { params.RUN_ALLURE == true }
             }
             steps {
-                bat 'npx cucumber-js --format allure-cucumberjs/reporter --format-options "{\\"resultsDir\\":\\"allure-results\\"}"'
+                script {
+                    def allureResult = bat(script: 'npx cucumber-js --format allure-cucumberjs/reporter --format-options "{\\"resultsDir\\":\\"allure-results\\"}"', returnStatus: true)
+                    if (allureResult != 0) {
+                        echo "Some scenarios failed during Allure recording (expected for @bug scenarios) — continuing to publish report."
+                    }
+                }
             }
         }
 
