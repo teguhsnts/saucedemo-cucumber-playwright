@@ -39,13 +39,46 @@ pipeline {
 
         stage('Run Main Test Suite') {
             steps {
-                bat 'npx cucumber-js --tags "not @bug"'
+                script {
+                    def tagExpression = ''
+                    switch(params.TEST_SCOPE) {
+                        case 'all':
+                            tagExpression = 'not @bug'
+                            break
+                        case 'positive':
+                            tagExpression = '@positive and not @bug'
+                            break
+                        case 'negative':
+                            tagExpression = '@negative and not @bug'
+                            break
+                        case 'bug':
+                            tagExpression = '@bug'
+                            break
+                        case 'smoke':
+                            tagExpression = '@smoke'
+                            break
+                        case 'custom':
+                            tagExpression = params.CUSTOM_TAG
+                            break
+                        default:
+                            tagExpression = 'not @bug'
+                    }
+                    echo "Running scenarios with tag expression: ${tagExpression}"
+                    bat "npx cucumber-js --tags \"${tagExpression}\""
+                }
             }
         }
 
         stage('Generate Step PDF (Main)') {
             steps {
                 bat 'node scripts/generate-step-pdf.js'
+            }
+        }
+
+        stage('Publish Cucumber Report') {
+            steps {
+                cucumber buildStatus: 'UNSTABLE',
+                         fileIncludePattern: 'reports/cucumber-report.json'
             }
         }
 
@@ -56,6 +89,9 @@ pipeline {
         }
 
         stage('Run Known Bug Scenarios') {
+            when {
+                expression { params.TEST_SCOPE == 'all' }
+            }
             steps {
                 script {
                     def bugTestResult = bat(script: 'npx cucumber-js --tags "@bug"', returnStatus: true)
@@ -67,14 +103,38 @@ pipeline {
         }
 
         stage('Generate Step PDF (Bugs)') {
+            when {
+                expression { params.TEST_SCOPE == 'all' }
+            }
             steps {
                 bat 'node scripts/generate-step-pdf.js'
             }
         }
 
         stage('Archive Bug Tracking Results') {
+            when {
+                expression { params.TEST_SCOPE == 'all' }
+            }
             steps {
                 archiveArtifacts artifacts: 'reports/videos/**, reports/screenshots/**, reports/pdf/**', allowEmptyArchive: true, fingerprint: true
+            }
+        }
+
+        stage('Run Allure Recording (Optional)') {
+            when {
+                expression { params.RUN_ALLURE == true }
+            }
+            steps {
+                bat 'cucumber-js --format allure-cucumberjs/reporter --format-options "{\\"resultsDir\\":\\"allure-results\\"}"'
+            }
+        }
+
+        stage('Publish Allure Report (Optional)') {
+            when {
+                expression { params.RUN_ALLURE == true }
+            }
+            steps {
+                allure includeProperties: false, results: [[path: 'allure-results']]
             }
         }
     }
@@ -85,10 +145,10 @@ pipeline {
             bat 'if exist .env del .env'
         }
         success {
-            echo 'Main test suite passed. Known bugs (if any) tracked separately.'
+            echo 'Test run completed. Check reports for details.'
         }
         failure {
-            echo 'Main test suite failed — check artifacts for evidence.'
+            echo 'Test suite failed — check artifacts for evidence.'
         }
     }
 }
