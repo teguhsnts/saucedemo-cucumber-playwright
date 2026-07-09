@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        node {
+            label ''
+            customWorkspace 'C:\\Jenkins-Workspace\\saucedemo-automation-test'
+        }
+    }
 
     tools {
         nodejs 'NodeJS-22'
@@ -36,6 +41,8 @@ pipeline {
                 bat 'npx puppeteer browsers install chrome'
             }
         }
+
+        // ... sisanya sama seperti sebelumnya
 
         stage('Run Main Test Suite') {
             steps {
