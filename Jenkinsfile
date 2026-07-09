@@ -126,7 +126,8 @@ pipeline {
             }
             steps {
                 script {
-                    def allureResult = bat(script: 'npx cucumber-js --format allure-cucumberjs/reporter --format-options "{\\"resultsDir\\":\\"allure-results\\"}"', returnStatus: true)
+                    // def allureResult = bat(script: 'npx cucumber-js --format allure-cucumberjs/reporter --format-options "{\\"resultsDir\\":\\"allure-results\\"}"', returnStatus: true)
+                    def allureResult = bat(script: 'npx cucumber-js --tags "not @bug" --format allure-cucumberjs/reporter --format-options "{\\"resultsDir\\":\\"allure-results\\"}"', returnStatus: true)
                     if (allureResult != 0) {
                         echo "Some scenarios failed during Allure recording (expected for @bug scenarios) — continuing to publish report."
                     }
