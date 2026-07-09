@@ -2,7 +2,7 @@ pipeline {
     agent {
         node {
             label ''
-            customWorkspace 'C:\\Jenkins-Workspace\\saucedemo-automation-test'
+            customWorkspace 'C:\ProgramData\Jenkins\.jenkins\workspace\saucedemo-automation-test'
         }
     }
 
