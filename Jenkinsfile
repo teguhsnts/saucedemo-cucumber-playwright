@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        node {
-            label ''
-            customWorkspace 'C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\saucedemo-automation-test'
-        }
-    }
+    agent any
 
     tools {
         nodejs 'NodeJS-22'
@@ -17,9 +12,12 @@ pipeline {
 
     environment {
         CI = 'true'
+        JIRA_BASE_URL = 'https://teguhsnts2903.atlassian.net'
+        JIRA_PROJECT_KEY = 'SD'
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -41,8 +39,6 @@ pipeline {
                 bat 'npx puppeteer browsers install chrome'
             }
         }
-
-        // ... sisanya sama seperti sebelumnya
 
         stage('Run Main Test Suite') {
             steps {
@@ -71,7 +67,15 @@ pipeline {
                             tagExpression = 'not @bug'
                     }
                     echo "Running scenarios with tag expression: ${tagExpression}"
-                    bat "npx cucumber-js --tags \"${tagExpression}\""
+
+                    def mainResult = bat(script: "npx cucumber-js --tags \"${tagExpression}\"", returnStatus: true)
+
+                    if (mainResult != 0) {
+                        echo "WARNING: Main Test Suite has unexpected failures!"
+                        env.MAIN_SUITE_FAILED = 'true'
+                    } else {
+                        env.MAIN_SUITE_FAILED = 'false'
+                    }
                 }
             }
         }
@@ -95,13 +99,27 @@ pipeline {
             }
         }
 
+        stage('Create Jira Tickets for Unexpected Failures') {
+            when {
+                allOf {
+                    expression { env.MAIN_SUITE_FAILED == 'true' }
+                    expression { params.CREATE_JIRA_BUGS == true }
+                }
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'jira-api-credentials', usernameVariable: 'JIRA_EMAIL', passwordVariable: 'JIRA_API_TOKEN')]) {
+                    bat 'node scripts/create-jira-bugs.js unexpected'
+                }
+            }
+        }
+
         stage('Run Known Bug Scenarios') {
             when {
                 expression { params.TEST_SCOPE == 'all' }
             }
             steps {
                 script {
-                    def bugTestResult = bat(script: 'npx cucumber-js --tags "@bug"', returnStatus: true)
+                    def bugTestResult = bat(script: 'npx cucumber-js --tags "@bug" --format json:reports/bug-report.json', returnStatus: true)
                     if (bugTestResult != 0) {
                         echo "Known bug scenarios failed as expected (documented defects) — this does not fail the build."
                     }
@@ -127,16 +145,29 @@ pipeline {
             }
         }
 
+        stage('Create Jira Bug Tickets') {
+            when {
+                allOf {
+                    expression { params.TEST_SCOPE == 'all' }
+                    expression { params.CREATE_JIRA_BUGS == true }
+                }
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'jira-api-credentials', usernameVariable: 'JIRA_EMAIL', passwordVariable: 'JIRA_API_TOKEN')]) {
+                    bat 'node scripts/create-jira-bugs.js known'
+                }
+            }
+        }
+
         stage('Run Allure Recording (Optional)') {
             when {
                 expression { params.RUN_ALLURE == true }
             }
             steps {
                 script {
-                    // def allureResult = bat(script: 'npx cucumber-js --format allure-cucumberjs/reporter --format-options "{\\"resultsDir\\":\\"allure-results\\"}"', returnStatus: true)
                     def allureResult = bat(script: 'npx cucumber-js --tags "not @bug" --format allure-cucumberjs/reporter --format-options "{\\"resultsDir\\":\\"allure-results\\"}"', returnStatus: true)
                     if (allureResult != 0) {
-                        echo "Some scenarios failed during Allure recording (expected for @bug scenarios) — continuing to publish report."
+                        echo "Unexpected failure during Allure recording — check main suite scenarios."
                     }
                 }
             }
@@ -150,6 +181,16 @@ pipeline {
                 allure includeProperties: false, results: [[path: 'allure-results']]
             }
         }
+
+        stage('Final Status Check') {
+            steps {
+                script {
+                    if (env.MAIN_SUITE_FAILED == 'true') {
+                        error("Main Test Suite has unexpected failures. Jira ticket created for investigation.")
+                    }
+                }
+            }
+        }
     }
 
     post {
@@ -158,10 +199,10 @@ pipeline {
             bat 'if exist .env del .env'
         }
         success {
-            echo 'Test run completed. Check reports for details.'
+            echo 'Test run completed successfully. Check reports for details.'
         }
         failure {
-            echo 'Test suite failed — check artifacts for evidence.'
+            echo 'Test suite failed — check artifacts and Jira for evidence.'
         }
     }
 }
