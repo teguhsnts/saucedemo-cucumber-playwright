@@ -3,7 +3,7 @@ Feature: Login SauceDemo
   @TC-01-Login @positive @smoke
   Scenario: Login with valid credentials
     Given user opens the saucedemo login page
-    When user logs in with username "standard_user" and password "secret_sauce"
+    When user logs in with username "standard_user" and password "secret_sauc"
     Then user successfully lands on the products page
 
   @TC-02-Login  @negative
