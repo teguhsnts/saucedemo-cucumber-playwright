@@ -14,6 +14,8 @@ pipeline {
         CI = 'true'
         JIRA_BASE_URL = 'https://teguhsnts2903.atlassian.net'
         JIRA_PROJECT_KEY = 'SD'
+        TESTRAIL_URL = 'https://teguhsnts.testrail.io'
+        TESTRAIL_PROJECT_ID = '2'
     }
 
     stages {
@@ -158,7 +160,16 @@ pipeline {
                 }
             }
         }
-
+        stage('Sync to TestRail') {
+            when {
+                expression { params.SYNC_TESTRAIL == true }
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'testrail-api-credentials', usernameVariable: 'TESTRAIL_USER', passwordVariable: 'TESTRAIL_API_KEY')]) {
+                    bat 'node scripts/sync-testrail.js'
+                }
+            }
+        }
         stage('Run Allure Recording (Optional)') {
             when {
                 expression { params.RUN_ALLURE == true }
