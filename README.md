@@ -388,21 +388,6 @@ Script `sync-testrail.js` membaca tag dari hasil test, mencocokkannya lewat mapp
 
 ---
 
-## Troubleshooting
-
-| Masalah | Penyebab | Solusi |
-|---|---|---|
-| Terminal tidak menampilkan pass/fail | `allure-cucumberjs/reporter` digabung formatter lain | Jalankan Allure sebagai profile/proses terpisah |
-| `Cannot find module '...'` | File `require()` belum dibuat/salah path | Cek nama file dan lokasi folder |
-| Browser gagal jalan di Jenkins | Browser belum ter-install di server CI | Pastikan `npx playwright install --with-deps` dan `npx puppeteer browsers install chrome` di stage Install Dependencies |
-| PDF tidak ter-generate | Script tidak terpanggil / `step-data.json` kosong | Pastikan `report:step-pdf` di-chain setelah test (`&&`) |
-| Jenkins membuat workspace duplikat (`@2`, `@3`) | Build baru mulai sebelum build sebelumnya selesai | Tunggu build sebelumnya selesai total, atau gunakan `customWorkspace` |
-| `TestRail API is disabled` | API belum diaktifkan di TestRail | Aktifkan di Administration → Site Settings → API |
-| `ConnectTimeoutError` ke TestRail/GitHub | Gangguan jaringan sesaat | Build ulang; tambahkan retry logic di script sync |
-| Hasil sync TestRail cuma sebagian TC | `cucumber-report.json` tertimpa oleh run lain | Gunakan Cucumber **profile** terpisah untuk tiap output JSON, jangan andalkan flag `--format` yang digabung dengan config default |
-
----
-
 ## FAQ
 
 **Q: Kenapa ada scenario yang sengaja dibuat gagal?**
