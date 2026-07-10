@@ -8,6 +8,15 @@
       "features/user_types.feature"
     ]
   },
+  "bug": {
+    "require": ["steps/**/*.js", "support/**/*.js"],
+    "format": ["pretty", "json:reports/bug-report.json"],
+    "paths": [
+      "features/login.feature",
+      "features/cart_checkout.feature",
+      "features/user_types.feature"
+    ]
+  },
   "allure": {
     "require": ["steps/**/*.js", "support/**/*.js"],
     "format": ["allure-cucumberjs/reporter"],

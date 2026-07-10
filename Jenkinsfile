@@ -121,7 +121,7 @@ pipeline {
             }
             steps {
                 script {
-                    def bugTestResult = bat(script: 'npx cucumber-js --tags "@bug" --format json:reports/bug-report.json', returnStatus: true)
+                    def bugTestResult = bat(script: 'npx cucumber-js --tags "@bug" --profile bug', returnStatus: true)
                     if (bugTestResult != 0) {
                         echo "Known bug scenarios failed as expected (documented defects) — this does not fail the build."
                     }
