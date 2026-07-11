@@ -50,7 +50,6 @@ function buildHtml(scenarioName, steps) {
 
   const stepData = JSON.parse(fs.readFileSync(STEP_DATA_FILE, 'utf-8'));
 
-  // Kelompokkan step berdasarkan scenario
   const grouped = {};
   for (const item of stepData) {
     if (!grouped[item.scenario]) grouped[item.scenario] = [];
@@ -59,25 +58,31 @@ function buildHtml(scenarioName, steps) {
 
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
-  // const browser = await puppeteer.launch();
-  const browser = await puppeteer.launch({
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
+  const browser = await puppeteer.launch();
+  let generatedCount = 0;
+  let skippedCount = 0;
 
   for (const [scenarioName, steps] of Object.entries(grouped)) {
+    const hasFailed = steps.some(step => step.status !== 'PASSED');
+
+    if (hasFailed) {
+      console.log(`Skip (ada step gagal): ${scenarioName}`);
+      skippedCount++;
+      continue;
+    }
+
     const safeName = scenarioName.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-    const htmlPath = path.join(OUTPUT_DIR, `${safeName}.html`);
-    const pdfPath = path.join(OUTPUT_DIR, `${safeName}.pdf`);
+    const scenarioDir = path.join(OUTPUT_DIR, safeName);
+    fs.mkdirSync(scenarioDir, { recursive: true });
+
+    const htmlPath = path.join(scenarioDir, `${safeName}.html`);
+    const pdfPath = path.join(scenarioDir, `${safeName}.pdf`);
 
     const html = buildHtml(scenarioName, steps);
     fs.writeFileSync(htmlPath, html);
 
     const page = await browser.newPage();
-    // await page.goto(`file://${path.resolve(htmlPath)}`, { waitUntil: 'networkidle0' });
-    await page.goto(`file://${path.resolve(htmlPath)}`, {
-      waitUntil: 'networkidle0',
-      timeout: 60000 // naikkan dari default 30000ms jadi 60 detik
-    });
+    await page.goto(`file://${path.resolve(htmlPath)}`, { waitUntil: 'networkidle0' });
 
     await page.pdf({
       path: pdfPath,
@@ -88,8 +93,9 @@ function buildHtml(scenarioName, steps) {
 
     await page.close();
     console.log(`PDF generated: ${pdfPath}`);
+    generatedCount++;
   }
 
   await browser.close();
-  console.log('Semua PDF per scenario selesai dibuat.');
+  console.log(`\nSelesai. ${generatedCount} PDF dibuat, ${skippedCount} scenario dilewati (ada kegagalan).`);
 })();

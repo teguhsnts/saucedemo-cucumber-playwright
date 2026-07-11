@@ -15,11 +15,14 @@ function safeCleanDir(dirPath) {
   try {
     fs.rmSync(dirPath, { recursive: true, force: true });
   } catch (err) {
-    console.warn(`Gagal membersihkan ${dirPath}, kemungkinan file sedang terkunci:`, err.message);
+    console.warn(`Gagal membersihkan ${dirPath}:`, err.message);
   }
 }
 
-// Bersihkan semua folder/file report lama sebelum run baru dimulai
+function sanitizeName(name) {
+  return name.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
 if (fs.existsSync(STEP_DATA_FILE)) {
   try {
     fs.unlinkSync(STEP_DATA_FILE);
@@ -40,15 +43,14 @@ class CustomWorld {
     this.parameters = parameters;
   }
 
-  async openBrowser() {
+  async openBrowser(scenarioVideoDir) {
     this.browser = await chromium.launch({
       headless: this.parameters?.headless === true
-      // slowMo: 300, // aktifkan lagi kalau mau lihat aksi diperlambat
     });
 
     this.context = await this.browser.newContext({
       recordVideo: {
-        dir: VIDEO_DIR,
+        dir: scenarioVideoDir,
         size: { width: 1280, height: 720 }
       }
     });
@@ -61,7 +63,7 @@ class CustomWorld {
     const videoPath = await this.page.video()?.path();
 
     if (this.context) {
-      await this.context.close(); // video baru benar-benar ke-save setelah ini
+      await this.context.close();
     }
     if (this.browser) {
       await this.browser.close();
@@ -74,11 +76,18 @@ class CustomWorld {
 setWorldConstructor(CustomWorld);
 
 Before(async function (scenario) {
-  await this.openBrowser();
   this.currentScenarioName = scenario.pickle.name;
+  this.safeScenarioName = sanitizeName(this.currentScenarioName);
+
+  this.scenarioScreenshotDir = path.join(SCREENSHOT_DIR, this.safeScenarioName);
+  this.scenarioVideoDir = path.join(VIDEO_DIR, this.safeScenarioName);
+
+  fs.mkdirSync(this.scenarioScreenshotDir, { recursive: true });
+  fs.mkdirSync(this.scenarioVideoDir, { recursive: true });
+
+  await this.openBrowser(this.scenarioVideoDir);
 });
 
-// Screenshot tiap step selesai (passed maupun failed)
 AfterStep(async function ({ pickleStep, result }) {
   if (!this.page || this.page.isClosed()) {
     return;
@@ -86,17 +95,14 @@ AfterStep(async function ({ pickleStep, result }) {
 
   this.stepCounter++;
 
-  const safeScenario = this.currentScenarioName.replace(/[^a-zA-Z0-9]+/g, '_');
-  const screenshotFileName = `${safeScenario}_step${this.stepCounter}.png`;
-  const screenshotPath = path.join(SCREENSHOT_DIR, screenshotFileName);
+  const screenshotFileName = `step${this.stepCounter}.png`;
+  const screenshotPath = path.join(this.scenarioScreenshotDir, screenshotFileName);
 
   await this.page.screenshot({ path: screenshotPath });
 
-  // Attach ke Allure report
   const screenshotBuffer = fs.readFileSync(screenshotPath);
   this.attach(screenshotBuffer, 'image/png');
 
-  // Simpan data step untuk PDF custom nanti
   let allData = [];
   if (fs.existsSync(STEP_DATA_FILE)) {
     allData = JSON.parse(fs.readFileSync(STEP_DATA_FILE, 'utf-8'));
@@ -112,20 +118,14 @@ AfterStep(async function ({ pickleStep, result }) {
   fs.writeFileSync(STEP_DATA_FILE, JSON.stringify(allData, null, 2));
 });
 
-// Video full per scenario (dari awal sampai akhir), rename sesuai nama TC
-After(async function (scenario) {
+After(async function () {
   const videoPath = await this.closeBrowser();
 
   if (!videoPath || !fs.existsSync(videoPath)) {
     return;
   }
 
-  const scenarioName = scenario.pickle.name
-    .replace(/[^a-zA-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-
-  const newVideoName = `${scenarioName}.webm`;
-  const newVideoPath = path.join(VIDEO_DIR, newVideoName);
+  const newVideoPath = path.join(this.scenarioVideoDir, 'video.webm');
 
   try {
     fs.renameSync(videoPath, newVideoPath);
