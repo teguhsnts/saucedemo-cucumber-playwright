@@ -205,15 +205,26 @@ pipeline {
     }
 
     post {
-        always {
-            echo 'Cleaning up .env file for security...'
-            bat 'if exist .env del .env'
+    always {
+        echo 'Cleaning up .env file for security...'
+        bat 'if exist .env del .env'
+    }
+    success {
+        echo 'Test run completed successfully. Check reports for details.'
+        withCredentials([string(credentialsId: 'slack-webhook-url', variable: 'SLACK_WEBHOOK_URL')]) {
+            bat 'node scripts/send-slack-notification.js SUCCESS'
         }
-        success {
-            echo 'Test run completed successfully. Check reports for details.'
+    }
+    unstable {
+        echo 'Build unstable — some tests failed.'
+        withCredentials([string(credentialsId: 'slack-webhook-url', variable: 'SLACK_WEBHOOK_URL')]) {
+            bat 'node scripts/send-slack-notification.js UNSTABLE'
         }
-        failure {
-            echo 'Test suite failed — check artifacts and Jira for evidence.'
+    }
+    failure {
+        echo 'Test suite failed — check artifacts and Jira for evidence.'
+        withCredentials([string(credentialsId: 'slack-webhook-url', variable: 'SLACK_WEBHOOK_URL')]) {
+            bat 'node scripts/send-slack-notification.js FAILURE'
         }
     }
 }
