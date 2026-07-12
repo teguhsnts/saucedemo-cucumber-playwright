@@ -37,7 +37,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 bat 'npm ci'
-                bat 'npx playwright install --with-deps chromium'
+                bat 'npx playwright install --with-deps chromium firefox webkit'
                 bat 'npx puppeteer browsers install chrome'
             }
         }
@@ -68,9 +68,12 @@ pipeline {
                         default:
                             tagExpression = 'not @bug'
                     }
-                    echo "Running scenarios with tag expression: ${tagExpression}"
+                    echo "Running scenarios on browser(s): ${params.BROWSER}, tag: ${tagExpression}"
 
-                    def mainResult = bat(script: "npx cucumber-js --tags \"${tagExpression}\"", returnStatus: true)
+                    def mainResult = bat(
+                        script: "node scripts/run-cross-browser.js --browser=${params.BROWSER} --tags=\"${tagExpression}\"",
+                        returnStatus: true
+                    )
 
                     if (mainResult != 0) {
                         echo "WARNING: Main Test Suite has unexpected failures!"
@@ -81,7 +84,7 @@ pipeline {
                 }
             }
         }
-
+        
         stage('Generate Step PDF (Main)') {
             steps {
                 bat 'node scripts/generate-step-pdf.js'

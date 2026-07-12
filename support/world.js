@@ -1,5 +1,5 @@
 const { setWorldConstructor, setDefaultTimeout, Before, After, AfterStep } = require('@cucumber/cucumber');
-const { chromium } = require('@playwright/test');
+const { chromium, firefox, webkit } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -23,15 +23,33 @@ function sanitizeName(name) {
   return name.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
-if (fs.existsSync(STEP_DATA_FILE)) {
-  try {
-    fs.unlinkSync(STEP_DATA_FILE);
-  } catch (err) {
-    console.warn('Gagal hapus step-data.json:', err.message);
+function getBrowserEngine(browserName) {
+  switch (browserName) {
+    case 'firefox':
+      return firefox;
+    case 'webkit':
+      return webkit;
+    case 'chromium':
+    default:
+      return chromium;
   }
 }
-safeCleanDir(SCREENSHOT_DIR);
-safeCleanDir(VIDEO_DIR);
+
+// Cleanup hanya sekali di awal jika ini bukan sub-run dari kombinasi "all"
+// (Untuk kombinasi "all", kita handle cleanup di level script/Jenkinsfile, bukan di sini)
+const SKIP_CLEANUP = process.env.SKIP_CLEANUP === 'true';
+
+if (!SKIP_CLEANUP) {
+  if (fs.existsSync(STEP_DATA_FILE)) {
+    try {
+      fs.unlinkSync(STEP_DATA_FILE);
+    } catch (err) {
+      console.warn('Gagal hapus step-data.json:', err.message);
+    }
+  }
+  safeCleanDir(SCREENSHOT_DIR);
+  safeCleanDir(VIDEO_DIR);
+}
 
 fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 fs.mkdirSync(VIDEO_DIR, { recursive: true });
@@ -44,7 +62,11 @@ class CustomWorld {
   }
 
   async openBrowser(scenarioVideoDir) {
-    this.browser = await chromium.launch({
+    const browserName = this.parameters?.browser || 'chromium';
+    const engine = getBrowserEngine(browserName);
+    this.browserName = browserName;
+
+    this.browser = await engine.launch({
       headless: this.parameters?.headless === true
     });
 
@@ -79,8 +101,10 @@ Before(async function (scenario) {
   this.currentScenarioName = scenario.pickle.name;
   this.safeScenarioName = sanitizeName(this.currentScenarioName);
 
-  this.scenarioScreenshotDir = path.join(SCREENSHOT_DIR, this.safeScenarioName);
-  this.scenarioVideoDir = path.join(VIDEO_DIR, this.safeScenarioName);
+  const browserName = this.parameters?.browser || 'chromium';
+
+  this.scenarioScreenshotDir = path.join(SCREENSHOT_DIR, browserName, this.safeScenarioName);
+  this.scenarioVideoDir = path.join(VIDEO_DIR, browserName, this.safeScenarioName);
 
   fs.mkdirSync(this.scenarioScreenshotDir, { recursive: true });
   fs.mkdirSync(this.scenarioVideoDir, { recursive: true });
@@ -110,6 +134,7 @@ AfterStep(async function ({ pickleStep, result }) {
 
   allData.push({
     scenario: this.currentScenarioName,
+    browser: this.browserName,
     stepText: pickleStep.text,
     status: result.status,
     screenshotPath: screenshotPath.replace(/\\/g, '/')

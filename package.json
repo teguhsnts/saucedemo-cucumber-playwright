@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "cucumber-js; npm run report:step-pdf",
+    "test:cross": "node scripts/run-cross-browser.js --browser=chromium --tags=\"not @bug\" & npm run report:step-pdf",
     "test:headed": "cucumber-js --world-parameters \"{\\\"headless\\\":false}\"; npm run report:step-pdf",
     "test:negative": "cucumber-js --tags @negative; npm run report:step-pdf",
     "test:positive": "cucumber-js --tags @positive; npm run report:step-pdf",
