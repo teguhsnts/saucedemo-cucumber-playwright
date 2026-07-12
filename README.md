@@ -31,9 +31,8 @@ Framework automation testing end-to-end untuk website [SauceDemo](https://www.sa
 13. [Integrasi TestRail](#integrasi-testrail)
 14. [Notifikasi Slack](#notifikasi-slack)
 15. [Cara Menambah Test Baru](#cara-menambah-test-baru)
-16. [Troubleshooting](#troubleshooting)
-17. [FAQ](#faq)
-18. [Kontak & Kontribusi](#kontak--kontribusi)
+16. [FAQ](#faq)
+17. [Kontak & Kontribusi](#kontak--kontribusi)
 
 ---
 
